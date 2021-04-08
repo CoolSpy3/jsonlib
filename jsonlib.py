@@ -45,7 +45,7 @@ def open(alias):
 
 def release(data, save=False):
 	if data not in openLocks:
-		raise ValueError("Provided dictionary does not match any open locks")
+		raise ValueError("The provided dictionary does not match any open locks")
 	alias = openLocks[data]
 	checkExists(alias)
 	try:
