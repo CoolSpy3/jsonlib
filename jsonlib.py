@@ -1,6 +1,7 @@
 import json
 import threading
 import os
+import contextlib
 
 files = {}
 locks = {}
@@ -43,25 +44,28 @@ def open(alias):
 		locks[alias].release()
 		raise e
 
-def release(data, save=False):
+def save(data):
 	if data not in openLocks:
 		raise ValueError("The provided dictionary does not match any open locks")
 	alias = openLocks[data]
 	checkExists(alias)
-	try:
-		if save:
-			os.remove(files[data])
-	        file = open(files[alias], "w")
-	        file.write(json.dumps(data, indent = 4))
-	        file.close()
-    except Exception as e:
-		locks[alias].release()
-		raise e
+	os.remove(files[data])
+    file = open(files[alias], "w")
+    file.write(json.dumps(data, indent = 4))
+    file.close()
+
+
+def release(data):
+	if data not in openLocks:
+		raise ValueError("The provided dictionary does not match any open locks")
+	alias = openLocks[data]
+	checkExists(alias)
+	locks[alias].release()
 
 @contextlib.contextmanager
-def open_json(alias, save=False):
+def open_json(alias):
 	data = open(alias)
 	try:
 		yield data
 	finally:
-		release(data, save=save)
+		release(data)
