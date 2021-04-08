@@ -57,3 +57,11 @@ def release(data, save=False):
     except Exception as e:
 		locks[alias].release()
 		raise e
+
+@contextlib.contextmanager
+def open_json(alias, save=False):
+	data = open(alias)
+	try:
+		yield data
+	finally:
+		release(data, save=save)
