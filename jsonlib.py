@@ -32,41 +32,56 @@ def closeFile(alias: str) -> None:
 	finally:
 		locks[alias].release()
 
-def open(alias: str) -> dict[any, any]:
+def _do_open_json(alias: str) -> dict[any, any]:
 	checkExists(alias)
 	locks[alias].acquire()
 	try:
 		file = open(files[alias], "r")
 		data = json.load(file)
 		file.close()
-		openLocks[data] = alias
+		openLocks[alias] = data
 		return data
 	except Exception as e:
 		locks[alias].release()
 		raise e
 
 def save(data: dict[any, any]) -> None:
-	if data not in openLocks:
+	alias = None
+	for tmp in openLocks:
+		if openLocks[tmp] is data:
+			alias = tmp
+	if alias == None:
 		raise ValueError("The provided dictionary does not match any open locks")
-	alias = openLocks[data]
 	checkExists(alias)
-	os.remove(files[data])
+	os.remove(files[alias])
 	file = open(files[alias], "w")
 	file.write(json.dumps(data, indent = 4))
 	file.close()
 
 
 def release(data: dict[any, any]) -> None:
-	if data not in openLocks:
+	alias = None
+	for tmp in openLocks:
+		if openLocks[tmp] is data:
+			alias = tmp
+	if alias == None:
 		raise ValueError("The provided dictionary does not match any open locks")
-	alias = openLocks[data]
 	checkExists(alias)
 	locks[alias].release()
 
-@contextlib.contextmanager
-def open_json(alias: str) -> typing.ContextManager[dict[any, any]]:
-	data = open(alias)
-	try:
-		yield data
-	finally:
-		release(data)
+class open_json:
+	def __init__(self, *args):
+		self.args = args
+
+	def __enter__(self):
+		self.result = self(*self.args)
+		return self.result
+
+	def __call__(self, *args):
+		return _do_open_json(*args)
+
+	def __exit__(self, type, value, traceback):
+		try:
+			release(self.result)
+		except RuntimeError:
+			pass
